@@ -1,0 +1,53 @@
+version: "3.7"
+
+services:
+  redis:
+    image: redis:5-alpine
+    volumes:
+      - redis-data:/data
+    ports:
+      - 6379
+  celery:
+    image: project_dev
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: dev
+    environment:
+      PYTHONBREAKPOINT: celery.contrib.rdb.set_trace
+    depends_on:
+      - redis
+    volumes:
+      - ./project:/app/project:rw
+      - ./manage.py:/app/manage.py:rw
+      - db:/app/db
+    command:
+      - celery
+      - -A
+      - project
+      - worker
+      - -l
+      - info
+  django:
+    image: project_dev
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: dev
+    depends_on:
+      - redis
+      - celery
+    volumes:
+      - ./project:/app/project:rw
+      - ./manage.py:/app/manage.py:rw
+      - db:/app/db
+    command:
+      - python
+      - manage.py
+      - runserver
+      - 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+volumes:
+  redis-data:
+  db:
